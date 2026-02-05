@@ -1,0 +1,293 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== ENUMS ====================
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  LEAD
+  CUSTOMER
+  CHURNED
+}
+
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+  ABANDONED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum ActivityType {
+  CALL
+  EMAIL
+  MEETING
+  NOTE
+  TASK
+  DEAL_CREATED
+  DEAL_STAGE_CHANGED
+  DEAL_WON
+  DEAL_LOST
+}
+
+// ==================== USUÁRIOS ====================
+
+model User {
+  id       String     @id @default(cuid())
+  email    String     @unique
+  name     String?
+  avatar   String?
+  role     UserRole   @default(USER)
+  status   UserStatus @default(ACTIVE)
+  language String     @default("pt-BR")
+  timezone String     @default("America/Sao_Paulo")
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  lastLoginAt DateTime?
+
+  // Relacionamentos
+  contacts        Contact[]  @relation("AssignedContacts")
+  createdContacts Contact[]  @relation("CreatedContacts")
+  companies       Company[]  @relation("AssignedCompanies")
+  deals           Deal[]     @relation("AssignedDeals")
+  tasksAssigned   Task[]     @relation("AssignedTasks")
+  tasksCreated    Task[]     @relation("CreatedTasks")
+  activities      Activity[]
+
+  @@map("users")
+}
+
+// ==================== EMPRESAS ====================
+
+model Company {
+  id          String  @id @default(cuid())
+  name        String
+  domain      String?
+  industry    String?
+  size        String?
+  website     String?
+  phone       String?
+  email       String?
+  address     String?
+  city        String?
+  state       String?
+  country     String? @default("Brasil")
+  postalCode  String?
+  description String?
+  logo        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedCompanies", fields: [assignedToId], references: [id])
+
+  contacts Contact[]
+  deals    Deal[]
+  tasks    Task[]
+
+  @@map("companies")
+}
+
+// ==================== CONTATOS ====================
+
+model Contact {
+  id         String        @id @default(cuid())
+  firstName  String
+  lastName   String
+  email      String?
+  phone      String?
+  mobile     String?
+  position   String?
+  department String?
+  status     ContactStatus @default(LEAD)
+  source     String?
+  notes      String?
+  avatar     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id])
+  assignedToId String?
+  assignedTo   User?    @relation("AssignedContacts", fields: [assignedToId], references: [id])
+  createdById  String?
+  createdBy    User?    @relation("CreatedContacts", fields: [createdById], references: [id])
+
+  deals      Deal[]
+  tasks      Task[]
+  activities Activity[]
+
+  @@map("contacts")
+}
+
+// ==================== PIPELINE E DEALS ====================
+
+model PipelineStage {
+  id       String  @id @default(cuid())
+  name     String
+  order    Int
+  color    String  @default("#6B7280")
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deals Deal[]
+
+  @@map("pipeline_stages")
+}
+
+model Deal {
+  id                String     @id @default(cuid())
+  title             String
+  value             Decimal?   @db.Decimal(15, 2)
+  currency          String     @default("BRL")
+  status            DealStatus @default(OPEN)
+  probability       Int?       @default(50)
+  expectedCloseDate DateTime?
+  closedAt          DateTime?
+  lostReason        String?
+  description       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relacionamentos
+  stageId      String?
+  stage        PipelineStage? @relation(fields: [stageId], references: [id])
+  contactId    String?
+  contact      Contact?       @relation(fields: [contactId], references: [id])
+  companyId    String?
+  company      Company?       @relation(fields: [companyId], references: [id])
+  assignedToId String?
+  assignedTo   User?          @relation("AssignedDeals", fields: [assignedToId], references: [id])
+
+  tasks      Task[]
+  activities Activity[]
+
+  @@map("deals")
+}
+
+// ==================== TAREFAS ====================
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?      @db.Text
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Vínculos (todos opcionais)
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  dealId String?
+  deal   Deal?   @relation(fields: [dealId], references: [id], onDelete: SetNull)
+
+  // Atribuição
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  // Quem criou
+  createdById String
+  createdBy   User   @relation("CreatedTasks", fields: [createdById], references: [id], onDelete: Cascade)
+
+  // Subtarefas
+  subtasks Subtask[]
+
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([contactId])
+  @@index([companyId])
+  @@index([dealId])
+  @@index([assignedToId])
+  @@index([createdById])
+  @@map("tasks")
+}
+
+model Subtask {
+  id          String    @id @default(cuid())
+  title       String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  order       Int       @default(0)
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+  @@map("subtasks")
+}
+
+// ==================== ATIVIDADES ====================
+
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  title       String
+  description String?
+  metadata    Json?
+
+  createdAt DateTime @default(now())
+
+  // Relacionamentos
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id])
+  dealId    String?
+  deal      Deal?    @relation(fields: [dealId], references: [id])
+
+  @@map("activities")
+}
