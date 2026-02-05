@@ -6,8 +6,8 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ==================== ENUMS ====================
@@ -81,7 +81,6 @@ model User {
   updatedAt   DateTime  @updatedAt
   lastLoginAt DateTime?
 
-  // Relacionamentos
   contacts        Contact[]  @relation("AssignedContacts")
   createdContacts Contact[]  @relation("CreatedContacts")
   companies       Company[]  @relation("AssignedCompanies")
@@ -115,7 +114,6 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relacionamentos
   assignedToId String?
   assignedTo   User?   @relation("AssignedCompanies", fields: [assignedToId], references: [id])
 
@@ -145,7 +143,6 @@ model Contact {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relacionamentos
   companyId    String?
   company      Company? @relation(fields: [companyId], references: [id])
   assignedToId String?
@@ -192,7 +189,6 @@ model Deal {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relacionamentos
   stageId      String?
   stage        PipelineStage? @relation(fields: [stageId], references: [id])
   contactId    String?
@@ -222,7 +218,6 @@ model Task {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Vínculos (todos opcionais)
   contactId String?
   contact   Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
 
@@ -232,15 +227,12 @@ model Task {
   dealId String?
   deal   Deal?   @relation(fields: [dealId], references: [id], onDelete: SetNull)
 
-  // Atribuição
   assignedToId String?
   assignedTo   User?   @relation("AssignedTasks", fields: [assignedToId], references: [id], onDelete: SetNull)
 
-  // Quem criou
   createdById String
   createdBy   User   @relation("CreatedTasks", fields: [createdById], references: [id], onDelete: Cascade)
 
-  // Subtarefas
   subtasks Subtask[]
 
   @@index([status])
@@ -282,7 +274,6 @@ model Activity {
 
   createdAt DateTime @default(now())
 
-  // Relacionamentos
   userId    String?
   user      User?    @relation(fields: [userId], references: [id])
   contactId String?
