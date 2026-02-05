@@ -2,9 +2,10 @@
 
 "use client"
 
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2 } from "lucide-react"
+import { Loader2, Building2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -27,11 +28,13 @@ import {
 
 import { contactFormSchema, ContactFormValues } from "@/lib/validations/contact"
 import { ContactWithRelations } from "@/types/contact"
+import { getCompaniesForSelect } from "@/actions/tasks"
 
 interface ContactFormProps {
     contact?: ContactWithRelations | null
     onSubmit: (data: ContactFormValues) => Promise<void>
     isLoading?: boolean
+    defaultCompanyId?: string
 }
 
 const statusOptions = [
@@ -42,7 +45,15 @@ const statusOptions = [
     { value: "CHURNED", label: "Perdido" },
 ]
 
-export function ContactForm({ contact, onSubmit, isLoading }: ContactFormProps) {
+type CompanyOption = {
+    id: string
+    name: string
+}
+
+export function ContactForm({ contact, onSubmit, isLoading, defaultCompanyId }: ContactFormProps) {
+    const [companies, setCompanies] = useState<CompanyOption[]>([])
+    const [loadingCompanies, setLoadingCompanies] = useState(true)
+
     const form = useForm<ContactFormValues>({
         resolver: zodResolver(contactFormSchema),
         defaultValues: {
@@ -56,9 +67,27 @@ export function ContactForm({ contact, onSubmit, isLoading }: ContactFormProps) 
             status: contact?.status || "LEAD",
             source: contact?.source || "",
             notes: contact?.notes || "",
-            companyId: contact?.companyId || "",
+            companyId: contact?.companyId || defaultCompanyId || "",
         },
     })
+
+    // Carregar empresas
+    useEffect(() => {
+        async function loadCompanies() {
+            setLoadingCompanies(true)
+            try {
+                const result = await getCompaniesForSelect()
+                if (result.success && result.data) {
+                    setCompanies(result.data)
+                }
+            } catch (error) {
+                console.error("Erro ao carregar empresas:", error)
+            } finally {
+                setLoadingCompanies(false)
+            }
+        }
+        loadCompanies()
+    }, [])
 
     return (
         <Form {...form}>
@@ -92,6 +121,40 @@ export function ContactForm({ contact, onSubmit, isLoading }: ContactFormProps) 
                         )}
                     />
                 </div>
+
+                {/* Campo de Empresa */}
+                <FormField
+                    control={form.control}
+                    name="companyId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4" />
+                                Empresa
+                            </FormLabel>
+                            <Select
+                                onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
+                                value={field.value || "none"}
+                                disabled={loadingCompanies}
+                            >
+                                <FormControl>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={loadingCompanies ? "Carregando..." : "Selecione uma empresa"} />
+                                    </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                    <SelectItem value="none">Nenhuma empresa</SelectItem>
+                                    {companies.map((company) => (
+                                        <SelectItem key={company.id} value={company.id}>
+                                            {company.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
 
                 <div className="grid grid-cols-2 gap-4">
                     <FormField

@@ -13,8 +13,13 @@ import {
     TrendingUp,
     DollarSign,
     Clock,
+    CheckSquare,
+    Circle,
+    CheckCircle2,
+    AlertCircle,
+    Plus,
 } from "lucide-react"
-import { format } from "date-fns"
+import { format, isPast, isToday } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
 import { getDealById } from "@/actions/deals"
@@ -29,6 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Progress } from "@/components/ui/progress"
+import { cn } from "@/lib/utils"
 import { DealActions } from "./deal-actions"
 
 export const metadata: Metadata = {
@@ -37,6 +43,21 @@ export const metadata: Metadata = {
 
 type Props = {
     params: Promise<{ id: string }>
+}
+
+// Configurações de prioridade e status das tarefas
+const priorityConfig = {
+    LOW: { label: "Baixa", color: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300" },
+    MEDIUM: { label: "Média", color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300" },
+    HIGH: { label: "Alta", color: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300" },
+    URGENT: { label: "Urgente", color: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300" },
+}
+
+const taskStatusConfig = {
+    TODO: { label: "A Fazer", icon: Circle, color: "text-gray-500" },
+    IN_PROGRESS: { label: "Em Progresso", icon: Clock, color: "text-blue-500" },
+    COMPLETED: { label: "Concluída", icon: CheckCircle2, color: "text-green-500" },
+    CANCELLED: { label: "Cancelada", icon: AlertCircle, color: "text-red-500" },
 }
 
 async function DealDetails({ id }: { id: string }) {
@@ -65,6 +86,16 @@ async function DealDetails({ id }: { id: string }) {
         const config = statusConfig[status] || statusConfig.OPEN
         return <Badge variant={config.variant}>{config.label}</Badge>
     }
+
+    // Separar tarefas por status
+    const tasks = deal.tasks || []
+    const pendingTasks = tasks.filter((t: any) => t.status === "TODO" || t.status === "IN_PROGRESS")
+    const completedTasks = tasks.filter((t: any) => t.status === "COMPLETED")
+    const overdueTasks = pendingTasks.filter((t: any) => {
+        if (!t.dueDate) return false
+        const dueDate = new Date(t.dueDate)
+        return isPast(dueDate) && !isToday(dueDate)
+    })
 
     return (
         <div className="space-y-6">
@@ -96,6 +127,64 @@ async function DealDetails({ id }: { id: string }) {
                 <DealActions deal={deal} />
             </div>
 
+            {/* Cards de resumo */}
+            <div className="grid gap-4 md:grid-cols-4">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                            Valor do Deal
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-primary">
+                            {deal.value ? formatCurrency(deal.value) : "—"}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                            Probabilidade
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{deal.probability ?? 0}%</div>
+                        <Progress value={deal.probability ?? 0} className="h-2 mt-2" />
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                            Tarefas Pendentes
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold">{pendingTasks.length}</div>
+                        {overdueTasks.length > 0 && (
+                            <p className="text-xs text-red-500 mt-1">
+                                {overdueTasks.length} atrasada{overdueTasks.length !== 1 ? "s" : ""}
+                            </p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                            Tarefas Concluídas
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-bold text-green-600">{completedTasks.length}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            de {tasks.length} total
+                        </p>
+                    </CardContent>
+                </Card>
+            </div>
+
             <div className="grid gap-6 md:grid-cols-3">
                 {/* Informações principais */}
                 <Card className="md:col-span-2">
@@ -103,32 +192,6 @@ async function DealDetails({ id }: { id: string }) {
                         <CardTitle>Informações do Deal</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {/* Valor e Probabilidade */}
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <DollarSign className="h-4 w-4" />
-                                    Valor
-                                </div>
-                                <p className="text-3xl font-bold text-primary">
-                                    {deal.value ? formatCurrency(deal.value) : "Não informado"}
-                                </p>
-                            </div>
-
-                            <div className="space-y-2">
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <TrendingUp className="h-4 w-4" />
-                                    Probabilidade
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="text-2xl font-bold">{deal.probability ?? 0}%</p>
-                                    <Progress value={deal.probability ?? 0} className="h-2" />
-                                </div>
-                            </div>
-                        </div>
-
-                        <Separator />
-
                         {/* Datas */}
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div>
@@ -195,6 +258,20 @@ async function DealDetails({ id }: { id: string }) {
                                 </div>
                             </>
                         )}
+
+                        {/* Valor Ponderado */}
+                        <Separator />
+                        <div>
+                            <p className="text-sm font-medium text-muted-foreground mb-1">
+                                Valor Ponderado (Valor × Probabilidade)
+                            </p>
+                            <p className="text-xl font-bold text-primary">
+                                {deal.value
+                                    ? formatCurrency((deal.value * (deal.probability ?? 0)) / 100)
+                                    : "R$ 0,00"
+                                }
+                            </p>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -250,27 +327,145 @@ async function DealDetails({ id }: { id: string }) {
                             )}
                         </CardContent>
                     </Card>
-
-                    {/* Valor Ponderado */}
-                    <Card>
-                        <CardHeader className="pb-3">
-                            <CardTitle className="text-base">Valor Ponderado</CardTitle>
-                            <CardDescription>
-                                Valor × Probabilidade
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-2xl font-bold">
-                                {deal.value
-                                    ? formatCurrency((deal.value * (deal.probability ?? 0)) / 100)
-                                    : "R$ 0,00"
-                                }
-                            </p>
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
+
+            {/* Seção de Tarefas */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <CheckSquare className="h-5 w-5" />
+                            Tarefas Vinculadas
+                        </CardTitle>
+                        <CardDescription>
+                            {tasks.length === 0
+                                ? "Nenhuma tarefa vinculada a este deal"
+                                : `${pendingTasks.length} pendente${pendingTasks.length !== 1 ? "s" : ""}, ${completedTasks.length} concluída${completedTasks.length !== 1 ? "s" : ""}`
+                            }
+                        </CardDescription>
+                    </div>
+                    <Button asChild>
+                        <Link href={`/tasks?dealId=${deal.id}`}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Nova Tarefa
+                        </Link>
+                    </Button>
+                </CardHeader>
+                <CardContent>
+                    {tasks.length > 0 ? (
+                        <div className="space-y-3">
+                            {/* Tarefas Atrasadas */}
+                            {overdueTasks.length > 0 && (
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-medium text-red-600 flex items-center gap-2">
+                                        <AlertCircle className="h-4 w-4" />
+                                        Atrasadas ({overdueTasks.length})
+                                    </h4>
+                                    {overdueTasks.map((task: any) => (
+                                        <TaskItem key={task.id} task={task} />
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Tarefas Pendentes (não atrasadas) */}
+                            {pendingTasks.filter((t: any) => !overdueTasks.includes(t)).length > 0 && (
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                        <Clock className="h-4 w-4" />
+                                        Pendentes ({pendingTasks.length - overdueTasks.length})
+                                    </h4>
+                                    {pendingTasks
+                                        .filter((t: any) => !overdueTasks.includes(t))
+                                        .map((task: any) => (
+                                            <TaskItem key={task.id} task={task} />
+                                        ))}
+                                </div>
+                            )}
+
+                            {/* Tarefas Concluídas */}
+                            {completedTasks.length > 0 && (
+                                <div className="space-y-2">
+                                    <h4 className="text-sm font-medium text-green-600 flex items-center gap-2">
+                                        <CheckCircle2 className="h-4 w-4" />
+                                        Concluídas ({completedTasks.length})
+                                    </h4>
+                                    {completedTasks.map((task: any) => (
+                                        <TaskItem key={task.id} task={task} />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                            <CheckSquare className="h-12 w-12 mb-4 opacity-50" />
+                            <p>Nenhuma tarefa vinculada a este deal</p>
+                            <Button variant="outline" className="mt-4" asChild>
+                                <Link href={`/tasks?dealId=${deal.id}`}>
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Criar primeira tarefa
+                                </Link>
+                            </Button>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
+    )
+}
+
+// Componente para exibir uma tarefa
+function TaskItem({ task }: { task: any }) {
+    const StatusIcon = taskStatusConfig[task.status as keyof typeof taskStatusConfig]?.icon || Circle
+    const statusColor = taskStatusConfig[task.status as keyof typeof taskStatusConfig]?.color || "text-gray-500"
+
+    const isCompleted = task.status === "COMPLETED"
+    const isOverdue = task.dueDate && isPast(new Date(task.dueDate)) && !isToday(new Date(task.dueDate)) && !isCompleted
+
+    return (
+        <Link
+            href={`/tasks/${task.id}`}
+            className={cn(
+                "flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors",
+                isCompleted && "opacity-60",
+                isOverdue && "border-red-300 dark:border-red-800"
+            )}
+        >
+            <StatusIcon className={cn("h-5 w-5 flex-shrink-0", statusColor)} />
+
+            <div className="flex-1 min-w-0">
+                <p className={cn(
+                    "font-medium truncate",
+                    isCompleted && "line-through text-muted-foreground"
+                )}>
+                    {task.title}
+                </p>
+                <div className="flex items-center gap-2 mt-1">
+                    <Badge
+                        variant="secondary"
+                        className={cn(
+                            "text-xs",
+                            priorityConfig[task.priority as keyof typeof priorityConfig]?.color
+                        )}
+                    >
+                        {priorityConfig[task.priority as keyof typeof priorityConfig]?.label}
+                    </Badge>
+
+                    {task.dueDate && (
+                        <span className={cn(
+                            "text-xs flex items-center gap-1",
+                            isOverdue ? "text-red-500" : "text-muted-foreground"
+                        )}>
+                            <Calendar className="h-3 w-3" />
+                            {isToday(new Date(task.dueDate))
+                                ? "Hoje"
+                                : format(new Date(task.dueDate), "dd/MM", { locale: ptBR })
+                            }
+                        </span>
+                    )}
+                </div>
+            </div>
+        </Link>
     )
 }
 

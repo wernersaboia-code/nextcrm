@@ -206,7 +206,18 @@ export async function getDealById(id: string) {
                 contact: true,
                 company: true,
                 tasks: {
-                    orderBy: { createdAt: "desc" },
+                    select: {
+                        id: true,
+                        title: true,
+                        status: true,
+                        priority: true,
+                        dueDate: true,
+                        completedAt: true,
+                    },
+                    orderBy: [
+                        { status: "asc" },
+                        { dueDate: "asc" },
+                    ],
                 },
                 activities: {
                     orderBy: { createdAt: "desc" },
@@ -219,7 +230,17 @@ export async function getDealById(id: string) {
             return { success: false, error: "Deal não encontrado" }
         }
 
-        return { success: true, data: serializeDeal(deal) }
+        // Serializar incluindo tarefas
+        const serialized = {
+            ...serializeDeal(deal),
+            tasks: deal.tasks.map((task) => ({
+                ...task,
+                dueDate: task.dueDate?.toISOString() || null,
+                completedAt: task.completedAt?.toISOString() || null,
+            })),
+        }
+
+        return { success: true, data: serialized }
     } catch (error) {
         console.error("Erro ao buscar deal:", error)
         return { success: false, error: "Erro ao buscar deal" }

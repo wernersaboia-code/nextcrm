@@ -1,117 +1,99 @@
 // app/(dashboard)/dashboard/page.tsx
 
+import { Suspense } from "react"
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card"
-import { Users, Building2, Handshake, CheckSquare } from "lucide-react"
+    getDashboardStats,
+    getDealsByStage,
+    getDealsOverTime,
+    getUpcomingTasks,
+    getRecentDeals
+} from "@/actions/dashboard"
+import { DashboardClient } from "./dashboard-client"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { Loader2 } from "lucide-react"
+
+function DashboardLoading() {
+    return (
+        <div className="space-y-6">
+            {/* Header */}
+            <div>
+                <div className="h-8 w-48 bg-muted animate-pulse rounded" />
+                <div className="h-4 w-64 bg-muted animate-pulse rounded mt-2" />
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {[...Array(4)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader className="pb-2">
+                            <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                        </CardHeader>
+                        <CardContent>
+                            <div className="h-8 w-32 bg-muted animate-pulse rounded" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Charts */}
+            <div className="grid gap-4 md:grid-cols-2">
+                {[...Array(2)].map((_, i) => (
+                    <Card key={i}>
+                        <CardHeader>
+                            <div className="h-5 w-32 bg-muted animate-pulse rounded" />
+                        </CardHeader>
+                        <CardContent className="flex items-center justify-center h-64">
+                            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+        </div>
+    )
+}
+
+async function DashboardData() {
+    const [statsResult, stagesResult, timeResult, tasksResult, dealsResult] = await Promise.all([
+        getDashboardStats(),
+        getDealsByStage(),
+        getDealsOverTime(),
+        getUpcomingTasks(),
+        getRecentDeals(),
+    ])
+
+    const stats = statsResult.success ? statsResult.data! : {
+        pipelineTotal: 0,
+        pipelineCount: 0,
+        wonThisMonth: 0,
+        wonThisMonthCount: 0,
+        lostThisMonth: 0,
+        lostThisMonthCount: 0,
+        pendingTasks: 0,
+        overdueTasks: 0,
+        totalContacts: 0,
+        totalCompanies: 0,
+    }
+
+    const dealsByStage = stagesResult.success ? stagesResult.data! : []
+    const dealsOverTime = timeResult.success ? timeResult.data! : []
+    const upcomingTasks = tasksResult.success ? tasksResult.data! : []
+    const recentDeals = dealsResult.success ? dealsResult.data! : []
+
+    return (
+        <DashboardClient
+            stats={stats}
+            dealsByStage={dealsByStage}
+            dealsOverTime={dealsOverTime}
+            upcomingTasks={upcomingTasks}
+            recentDeals={recentDeals}
+        />
+    )
+}
 
 export default function DashboardPage() {
     return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold">Dashboard</h1>
-                <p className="text-muted-foreground">
-                    Visão geral do seu CRM
-                </p>
-            </div>
-
-            {/* Cards de Métricas */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Total de Contatos
-                        </CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">0</div>
-                        <p className="text-xs text-muted-foreground">
-                            +0% em relação ao mês passado
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Empresas
-                        </CardTitle>
-                        <Building2 className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">0</div>
-                        <p className="text-xs text-muted-foreground">
-                            +0% em relação ao mês passado
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Negócios Abertos
-                        </CardTitle>
-                        <Handshake className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">0</div>
-                        <p className="text-xs text-muted-foreground">
-                            R$ 0,00 em pipeline
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                            Tarefas Pendentes
-                        </CardTitle>
-                        <CheckSquare className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">0</div>
-                        <p className="text-xs text-muted-foreground">
-                            0 para hoje
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Área para gráficos e mais conteúdo */}
-            <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Atividades Recentes</CardTitle>
-                        <CardDescription>
-                            Últimas atividades registradas no sistema
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                            Nenhuma atividade ainda.
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Próximas Tarefas</CardTitle>
-                        <CardDescription>
-                            Tarefas programadas para os próximos dias
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm text-muted-foreground">
-                            Nenhuma tarefa programada.
-                        </p>
-                    </CardContent>
-                </Card>
-            </div>
-        </div>
+        <Suspense fallback={<DashboardLoading />}>
+            <DashboardData />
+        </Suspense>
     )
 }
