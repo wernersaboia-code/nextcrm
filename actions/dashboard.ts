@@ -174,9 +174,9 @@ export async function getDashboardStats(): Promise<{ success: boolean; data?: Da
         ])
 
         // Calcular totais
-        const pipelineTotal = pipelineDeals.reduce((sum, d) => sum + (d.value ? Number(d.value) : 0), 0)
-        const wonTotal = wonDeals.reduce((sum, d) => sum + (d.value ? Number(d.value) : 0), 0)
-        const lostTotal = lostDeals.reduce((sum, d) => sum + (d.value ? Number(d.value) : 0), 0)
+        const pipelineTotal = pipelineDeals.reduce((sum: number, d) => sum + (d.value ? Number(d.value) : 0), 0)
+        const wonTotal = wonDeals.reduce((sum: number, d) => sum + (d.value ? Number(d.value) : 0), 0)
+        const lostTotal = lostDeals.reduce((sum: number, d) => sum + (d.value ? Number(d.value) : 0), 0)
 
         return {
             success: true,
